@@ -1,9 +1,7 @@
-use std::sync::{Arc, Mutex};
 use arangors::Database;
 use arangors::uclient::ClientExt;
 use casbin::{Adapter, Filter, Model};
 use async_trait::async_trait;
-use tokio::task::spawn_blocking;
 use crate::model::CasbinRule;
 use casbin_dao::CasbinDao;
 
@@ -47,7 +45,8 @@ impl<C: ClientExt + Send> Adapter for ArangorsAdapter<C> {
         Ok(())
     }
 
-    async fn load_filtered_policy<'a>(&mut self, m: &mut dyn Model, f: Filter<'a>) -> casbin::Result<()> {
+    async fn load_filtered_policy<'a>(&mut self, _: &mut dyn Model, _: Filter<'a>) ->
+                                                                                   casbin::Result<()> {
         unimplemented!()
     }
 
@@ -87,7 +86,8 @@ impl<C: ClientExt + Send> Adapter for ArangorsAdapter<C> {
         false
     }
 
-    async fn add_policy(&mut self, sec: &str, ptype: &str, rule: Vec<String>) -> casbin::Result<bool> {
+    async fn add_policy(&mut self, _: &str, ptype: &str, rule: Vec<String>) ->
+                                                                            casbin::Result<bool> {
         let ptype_c = ptype.to_string();
 
         if let Some(new_rule) = map_to_casbin_rule(&ptype_c, &rule) {
@@ -96,7 +96,8 @@ impl<C: ClientExt + Send> Adapter for ArangorsAdapter<C> {
         Ok(false)
     }
 
-    async fn add_policies(&mut self, sec: &str, ptype: &str, rules: Vec<Vec<String>>) -> casbin::Result<bool> {
+    async fn add_policies(&mut self, _: &str, ptype: &str, rules: Vec<Vec<String>>) ->
+                                                                                    casbin::Result<bool> {
         let ptype_c = ptype.to_string();
 
         let new_rules = rules
@@ -107,19 +108,22 @@ impl<C: ClientExt + Send> Adapter for ArangorsAdapter<C> {
         return self.database.add_policies(new_rules).await;
     }
 
-    async fn remove_policy(&mut self, sec: &str, ptype: &str, rule: Vec<String>) -> casbin::Result<bool> {
+    async fn remove_policy(&mut self, _: &str, ptype: &str, rule: Vec<String>) ->
+                                                                               casbin::Result<bool> {
         let ptype_c = ptype.to_string();
         let v = self.database.remove_policy(&ptype_c, rule).await;
         println!("{v:?}");
         v
     }
 
-    async fn remove_policies(&mut self, sec: &str, ptype: &str, rules: Vec<Vec<String>>) -> casbin::Result<bool> {
+    async fn remove_policies(&mut self, _: &str, ptype: &str, rules: Vec<Vec<String>>) ->
+                                                                                       casbin::Result<bool> {
         let ptype_c = ptype.to_string();
         self.database.remove_policies(&ptype_c, rules).await
     }
 
-    async fn remove_filtered_policy(&mut self, sec: &str, ptype: &str, field_index: usize, field_values: Vec<String>) -> casbin::Result<bool> {
+    async fn remove_filtered_policy(&mut self, _: &str, _: &str, _: usize,
+                                    _: Vec<String>) -> casbin::Result<bool> {
         unimplemented!()
     }
 }
