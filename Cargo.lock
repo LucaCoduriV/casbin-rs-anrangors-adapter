@@ -140,7 +140,7 @@ dependencies = [
 
 [[package]]
 name = "casbin-arangors-adapter"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "arangors",
  "async-trait",
