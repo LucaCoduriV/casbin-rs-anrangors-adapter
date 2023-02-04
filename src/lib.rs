@@ -1,31 +1,33 @@
-use arangors::Database;
-use arangors::uclient::ClientExt;
-use casbin::{Adapter, Filter, Model};
-use async_trait::async_trait;
 use crate::model::CasbinRule;
+use arangors::uclient::ClientExt;
+use arangors::Database;
+use async_trait::async_trait;
+use casbin::{Adapter, Filter, Model};
 use casbin_dao::CasbinDao;
 
-mod model;
 mod casbin_dao;
+mod model;
 
 #[cfg(test)]
 mod lib_test;
 
 pub struct ArangorsAdapter<C: ClientExt> {
-    database: Database<C>
+    database: Database<C>,
+    is_filtered: bool,
 }
 
 impl<C: ClientExt> ArangorsAdapter<C> {
     pub fn new(database: Database<C>) -> Self {
         Self {
-            database
+            database,
+            is_filtered: false,
         }
     }
 }
+
 #[async_trait]
 impl<C: ClientExt + Send> Adapter for ArangorsAdapter<C> {
     async fn load_policy(&self, m: &mut dyn Model) -> casbin::Result<()> {
-
         let rules = self.database.load_policy().await?;
 
         for casbin_rule in &rules {
@@ -45,9 +47,35 @@ impl<C: ClientExt + Send> Adapter for ArangorsAdapter<C> {
         Ok(())
     }
 
-    async fn load_filtered_policy<'a>(&mut self, _: &mut dyn Model, _: Filter<'a>) ->
-                                                                                   casbin::Result<()> {
-        unimplemented!()
+    async fn load_filtered_policy<'a>(
+        &mut self,
+        m: &mut dyn Model,
+        f: Filter<'a>,
+    ) -> casbin::Result<()> {
+        let rules = self
+            .database
+            .load_policy()
+            .await
+            .map_err(|e| casbin::error::AdapterError(Box::new(e)))?;
+
+        for casbin_rule in &rules {
+            let rule = load_filtered_policy_line(casbin_rule, &f);
+
+            if let Some((is_filtered, rule)) = rule {
+                if is_filtered {
+                    self.is_filtered = is_filtered;
+                    if let Some(ref sec) = casbin_rule.ptype.chars().next().map(|x| x.to_string()) {
+                        if let Some(t1) = m.get_mut_model().get_mut(sec) {
+                            if let Some(t2) = t1.get_mut(&casbin_rule.ptype) {
+                                t2.get_mut_policy().insert(rule);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     async fn save_policy(&mut self, m: &mut dyn Model) -> casbin::Result<()> {
@@ -83,11 +111,15 @@ impl<C: ClientExt + Send> Adapter for ArangorsAdapter<C> {
     }
 
     fn is_filtered(&self) -> bool {
-        false
+        self.is_filtered
     }
 
-    async fn add_policy(&mut self, _: &str, ptype: &str, rule: Vec<String>) ->
-                                                                            casbin::Result<bool> {
+    async fn add_policy(
+        &mut self,
+        _: &str,
+        ptype: &str,
+        rule: Vec<String>,
+    ) -> casbin::Result<bool> {
         let ptype_c = ptype.to_string();
 
         if let Some(new_rule) = map_to_casbin_rule(&ptype_c, &rule) {
@@ -96,8 +128,12 @@ impl<C: ClientExt + Send> Adapter for ArangorsAdapter<C> {
         Ok(false)
     }
 
-    async fn add_policies(&mut self, _: &str, ptype: &str, rules: Vec<Vec<String>>) ->
-                                                                                    casbin::Result<bool> {
+    async fn add_policies(
+        &mut self,
+        _: &str,
+        ptype: &str,
+        rules: Vec<Vec<String>>,
+    ) -> casbin::Result<bool> {
         let ptype_c = ptype.to_string();
 
         let new_rules = rules
@@ -108,40 +144,76 @@ impl<C: ClientExt + Send> Adapter for ArangorsAdapter<C> {
         return self.database.add_policies(new_rules).await;
     }
 
-    async fn remove_policy(&mut self, _: &str, ptype: &str, rule: Vec<String>) ->
-                                                                               casbin::Result<bool> {
+    async fn remove_policy(
+        &mut self,
+        _: &str,
+        ptype: &str,
+        rule: Vec<String>,
+    ) -> casbin::Result<bool> {
         let ptype_c = ptype.to_string();
-        let v = self.database.remove_policy(&ptype_c, rule).await;
-        println!("{v:?}");
-        v
+        self.database.remove_policy(&ptype_c, rule).await
     }
 
-    async fn remove_policies(&mut self, _: &str, ptype: &str, rules: Vec<Vec<String>>) ->
-                                                                                       casbin::Result<bool> {
+    async fn remove_policies(
+        &mut self,
+        _: &str,
+        ptype: &str,
+        rules: Vec<Vec<String>>,
+    ) -> casbin::Result<bool> {
         let ptype_c = ptype.to_string();
         self.database.remove_policies(&ptype_c, rules).await
     }
 
-    async fn remove_filtered_policy(&mut self, _: &str, _: &str, _: usize,
-                                    _: Vec<String>) -> casbin::Result<bool> {
-        unimplemented!()
+    async fn remove_filtered_policy(
+        &mut self,
+        _sec: &str,
+        pt: &str,
+        field_index: usize,
+        field_values: Vec<String>,
+    ) -> casbin::Result<bool> {
+        if field_index <= 5 && !field_values.is_empty() {
+
+            let ptype_c = pt.to_string();
+
+            let t = self.database.remove_filtered_policy(&ptype_c, field_index, field_values).await
+                .map_err(|e| casbin::error::AdapterError(Box::new(e)).into());
+            println!("{t:?}");
+            t
+        } else {
+            Ok(false)
+        }
     }
 }
 
-fn map_to_casbin_rule(ptype: &str, rule: &[String]) -> Option<CasbinRule>{
+fn map_to_casbin_rule(ptype: &str, rule: &[String]) -> Option<CasbinRule> {
     if ptype.trim().is_empty() || rule.is_empty() {
         return None;
     }
 
-    let new_rule = CasbinRule{
+    let new_rule = CasbinRule {
         _key: None,
         ptype: ptype.to_owned(),
         v0: rule[0].to_owned(),
-        v1: rule.get(1).map(String::to_owned).unwrap_or(String::from("")),
-        v2: rule.get(2).map(String::to_owned).unwrap_or(String::from("")),
-        v3: rule.get(3).map(String::to_owned).unwrap_or(String::from("")),
-        v4: rule.get(4).map(String::to_owned).unwrap_or(String::from("")),
-        v5: rule.get(5).map(String::to_owned).unwrap_or(String::from("")),
+        v1: rule
+            .get(1)
+            .map(String::to_owned)
+            .unwrap_or(String::from("")),
+        v2: rule
+            .get(2)
+            .map(String::to_owned)
+            .unwrap_or(String::from("")),
+        v3: rule
+            .get(3)
+            .map(String::to_owned)
+            .unwrap_or(String::from("")),
+        v4: rule
+            .get(4)
+            .map(String::to_owned)
+            .unwrap_or(String::from("")),
+        v5: rule
+            .get(5)
+            .map(String::to_owned)
+            .unwrap_or(String::from("")),
     };
 
     Some(new_rule)
@@ -175,6 +247,32 @@ fn normalize_policy(casbin_rule: &CasbinRule) -> Option<Vec<String>> {
 
     if !result.is_empty() {
         return Some(result.iter().map(|&x| x.to_owned()).collect());
+    }
+
+    None
+}
+
+fn load_filtered_policy_line(casbin_rule: &CasbinRule, f: &Filter) -> Option<(bool, Vec<String>)> {
+    if let Some(sec) = casbin_rule.ptype.chars().next() {
+        if let Some(policy) = normalize_policy(casbin_rule) {
+            let mut is_filtered = true;
+            if sec == 'p' {
+                for (i, rule) in f.p.iter().enumerate() {
+                    if !rule.is_empty() && rule != &policy[i] {
+                        is_filtered = false
+                    }
+                }
+            } else if sec == 'g' {
+                for (i, rule) in f.g.iter().enumerate() {
+                    if !rule.is_empty() && rule != &policy[i] {
+                        is_filtered = false
+                    }
+                }
+            } else {
+                return None;
+            }
+            return Some((is_filtered, policy));
+        }
     }
 
     None

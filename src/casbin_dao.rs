@@ -1,8 +1,8 @@
-use arangors::{AqlQuery, Database};
+use crate::CasbinRule;
 use arangors::uclient::ClientExt;
+use arangors::{AqlQuery, Database};
 use async_trait::async_trait;
 use casbin::{error::AdapterError, Result};
-use crate::CasbinRule;
 
 #[async_trait]
 pub(crate) trait CasbinDao {
@@ -13,6 +13,12 @@ pub(crate) trait CasbinDao {
     async fn add_policies(&self, rules: Vec<CasbinRule>) -> Result<bool>;
     async fn remove_policy(&self, pt: &str, rule: Vec<String>) -> Result<bool>;
     async fn remove_policies(&self, pt: &str, rules: Vec<Vec<String>>) -> Result<bool>;
+    async fn remove_filtered_policy(
+        &self,
+        pt: &str,
+        field_index: usize,
+        field_values: Vec<String>,
+    ) -> Result<bool>;
 }
 
 #[async_trait]
@@ -21,38 +27,40 @@ impl<T: ClientExt + Send> CasbinDao for Database<T> {
         let json = serde_json::value::to_value(&rules).unwrap();
 
         let aql = AqlQuery::builder()
-            .query(
-                "FOR r IN @rules INSERT r IN casbin",
-            )
+            .query("FOR r IN @rules INSERT r IN casbin")
             .bind_var("rules", json)
             .build();
 
-        let _: Vec<serde_json::value::Value> =
-            self.aql_query(aql).await.map_err(|e| AdapterError(Box::new(e)))?;
+        let _: Vec<serde_json::value::Value> = self
+            .aql_query(aql)
+            .await
+            .map_err(|e| AdapterError(Box::new(e)))?;
 
         Ok(())
     }
 
     async fn clear_policy(&self) -> Result<()> {
         let aql = AqlQuery::builder()
-            .query(
-                "FOR r IN casbin REMOVE r IN casbin",
-            ).build();
+            .query("FOR r IN casbin REMOVE r IN casbin")
+            .build();
 
-        let _: Vec<serde_json::value::Value> =
-            self.aql_query(aql).await.map_err(|e| AdapterError(Box::new(e)))?;
+        let _: Vec<serde_json::value::Value> = self
+            .aql_query(aql)
+            .await
+            .map_err(|e| AdapterError(Box::new(e)))?;
 
         Ok(())
     }
 
     async fn load_policy(&self) -> Result<Vec<CasbinRule>> {
         let aql = AqlQuery::builder()
-            .query(
-                "FOR r IN casbin RETURN r",
-            ).build();
+            .query("FOR r IN casbin RETURN r")
+            .build();
 
-        let rules: Vec<CasbinRule> =
-            self.aql_query(aql).await.map_err(|e| AdapterError(Box::new(e)))?;
+        let rules: Vec<CasbinRule> = self
+            .aql_query(aql)
+            .await
+            .map_err(|e| AdapterError(Box::new(e)))?;
 
         Ok(rules)
     }
@@ -61,14 +69,14 @@ impl<T: ClientExt + Send> CasbinDao for Database<T> {
         let json = serde_json::value::to_value(&rule).unwrap();
 
         let aql = AqlQuery::builder()
-            .query(
-                "INSERT @rule IN casbin",
-            )
+            .query("INSERT @rule IN casbin")
             .bind_var("rule", json)
             .build();
 
-        let _: Vec<serde_json::value::Value> =
-            self.aql_query(aql).await.map_err(|e| AdapterError(Box::new(e)))?;
+        let _: Vec<serde_json::value::Value> = self
+            .aql_query(aql)
+            .await
+            .map_err(|e| AdapterError(Box::new(e)))?;
 
         Ok(true)
     }
@@ -77,14 +85,14 @@ impl<T: ClientExt + Send> CasbinDao for Database<T> {
         let json = serde_json::value::to_value(&rules).unwrap();
 
         let aql = AqlQuery::builder()
-            .query(
-                "FOR r IN @rules INSERT r IN casbin",
-            )
+            .query("FOR r IN @rules INSERT r IN casbin")
             .bind_var("rules", json)
             .build();
 
-        let _: Vec<serde_json::value::Value> =
-            self.aql_query(aql).await.map_err(|e| AdapterError(Box::new(e)))?;
+        let _: Vec<serde_json::value::Value> = self
+            .aql_query(aql)
+            .await
+            .map_err(|e| AdapterError(Box::new(e)))?;
 
         Ok(true)
     }
@@ -114,8 +122,10 @@ impl<T: ClientExt + Send> CasbinDao for Database<T> {
             .bind_var("v5", rule[5].as_str())
             .build();
 
-        let arr: Vec<serde_json::value::Value> =
-            self.aql_query(aql).await.map_err(|e| AdapterError(Box::new(e)))?;
+        let arr: Vec<serde_json::value::Value> = self
+            .aql_query(aql)
+            .await
+            .map_err(|e| AdapterError(Box::new(e)))?;
 
         Ok(!arr.is_empty())
     }
@@ -126,6 +136,110 @@ impl<T: ClientExt + Send> CasbinDao for Database<T> {
         }
 
         Ok(true)
+    }
+
+    async fn remove_filtered_policy(&self, pt: &str, field_index: usize, field_values: Vec<String>)
+        -> Result<bool> {
+        let field_values = normalize_casbin_rule(field_values, field_index);
+
+        let aql = if field_index == 5 {
+            AqlQuery::builder()
+                .query(r#"FOR r IN casbin
+            FILTER r.ptype == @ptype
+            FILTER r.v5 == @f0
+            REMOVE r IN casbin
+            RETURN 1"#)
+                .bind_var("ptype", pt)
+                .bind_var("f0", field_values[0].as_str())
+                .build()
+        }else if field_index == 4 {
+            AqlQuery::builder()
+                .query(r#"FOR r IN casbin
+            FILTER r.ptype == @ptype
+            FILTER r.v4 == @f0
+            FILTER r.v5 == @f1
+            REMOVE r IN casbin
+            RETURN 1"#)
+                .bind_var("ptype", pt)
+                .bind_var("f0", field_values[0].as_str())
+                .bind_var("f1", field_values[1].as_str())
+                .build()
+        }else if field_index == 3 {
+            AqlQuery::builder()
+                .query(r#"FOR r IN casbin
+            FILTER r.ptype == @ptype
+            FILTER r.v3 == @f0
+            FILTER r.v4 == @f1
+            FILTER r.v5 == @f2
+            REMOVE r IN casbin
+            RETURN 1"#)
+                .bind_var("ptype", pt)
+                .bind_var("f0", field_values[0].as_str())
+                .bind_var("f1", field_values[1].as_str())
+                .bind_var("f2", field_values[2].as_str())
+                .build()
+        }else if field_index == 2{
+            AqlQuery::builder()
+                .query(r#"FOR r IN casbin
+            FILTER r.ptype == @ptype
+            FILTER r.v2 == @f0
+            FILTER r.v3 == @f1
+            FILTER r.v4 == @f2
+            FILTER r.v5 == @f3
+            REMOVE r IN casbin
+            RETURN 1"#)
+                .bind_var("ptype", pt)
+                .bind_var("f0", field_values[0].as_str())
+                .bind_var("f1", field_values[1].as_str())
+                .bind_var("f2", field_values[2].as_str())
+                .bind_var("f3", field_values[3].as_str())
+                .build()
+        }else if field_index == 1{
+            AqlQuery::builder()
+                .query(r#"FOR r IN casbin
+            FILTER r.ptype == @ptype
+            FILTER r.v1 == @f0
+            FILTER r.v2 == @f1
+            FILTER r.v3 == @f2
+            FILTER r.v4 == @f3
+            FILTER r.v5 == @f4
+            REMOVE r IN casbin
+            RETURN 1"#)
+                .bind_var("ptype", pt)
+                .bind_var("f0", field_values[0].as_str())
+                .bind_var("f1", field_values[1].as_str())
+                .bind_var("f2", field_values[2].as_str())
+                .bind_var("f3", field_values[3].as_str())
+                .bind_var("f4", field_values[4].as_str())
+                .build()
+        }else{
+            AqlQuery::builder()
+                .query(r#"FOR r IN casbin
+            FILTER r.ptype == @ptype
+            FILTER r.v0 == @f0
+            FILTER r.v1 == @f1
+            FILTER r.v2 == @f2
+            FILTER r.v3 == @f3
+            FILTER r.v4 == @f4
+            FILTER r.v5 == @f5
+            REMOVE r IN casbin
+                RETURN 1"#)
+                .bind_var("ptype", pt)
+                .bind_var("f0", field_values[0].as_str())
+                .bind_var("f1", field_values[1].as_str())
+                .bind_var("f2", field_values[2].as_str())
+                .bind_var("f3", field_values[3].as_str())
+                .bind_var("f4", field_values[4].as_str())
+                .bind_var("f5", field_values[5].as_str())
+                .build()
+        };
+
+        let arr: Vec<serde_json::value::Value> = self
+            .aql_query(aql)
+            .await
+            .map_err(|e| AdapterError(Box::new(e)))?;
+        println!("{arr:?}");
+        Ok(!arr.is_empty())
     }
 }
 
