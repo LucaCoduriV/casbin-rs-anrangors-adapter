@@ -109,7 +109,9 @@ impl<C: ClientExt + Send> Adapter for ArangorsAdapter<C> {
 
     async fn remove_policy(&mut self, sec: &str, ptype: &str, rule: Vec<String>) -> casbin::Result<bool> {
         let ptype_c = ptype.to_string();
-        self.database.remove_policy(&ptype_c, rule).await
+        let v = self.database.remove_policy(&ptype_c, rule).await;
+        println!("{v:?}");
+        v
     }
 
     async fn remove_policies(&mut self, sec: &str, ptype: &str, rules: Vec<Vec<String>>) -> casbin::Result<bool> {

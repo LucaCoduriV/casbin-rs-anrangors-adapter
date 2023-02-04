@@ -94,15 +94,16 @@ impl<T: ClientExt + Send> CasbinDao for Database<T> {
 
         let aql = AqlQuery::builder()
             .query(
-                "FOR r IN casbin \
-                FILTER r.ptype == @ptype && \
-                r.v0 == @v0 && \
-                r.v1 == @v1 && \
-                r.v2 == @v2 && \
-                r.v3 == @v3 && \
-                r.v4 == @v4 && \
-                r.v5 == @v5 && \
-                REMOOVE r IN casbin",
+                r#"FOR r IN casbin
+    FILTER r.ptype == @ptype
+    FILTER r.v0 == @v0
+    FILTER r.v1 == @v1
+    FILTER r.v2 == @v2
+    FILTER r.v3 == @v3
+    FILTER r.v4 == @v4
+    FILTER r.v5 == @v5
+    REMOVE r IN casbin
+    RETURN 1"#,
             )
             .bind_var("ptype", pt)
             .bind_var("v0", rule[0].as_str())
@@ -113,15 +114,14 @@ impl<T: ClientExt + Send> CasbinDao for Database<T> {
             .bind_var("v5", rule[5].as_str())
             .build();
 
-        let _: Vec<serde_json::value::Value> =
+        let arr: Vec<serde_json::value::Value> =
             self.aql_query(aql).await.map_err(|e| AdapterError(Box::new(e)))?;
 
-        Ok(true)
+        Ok(!arr.is_empty())
     }
 
     async fn remove_policies(&self, pt: &str, rules: Vec<Vec<String>>) -> Result<bool> {
-
-        for rule in rules{
+        for rule in rules {
             self.remove_policy(pt, rule).await?;
         }
 
