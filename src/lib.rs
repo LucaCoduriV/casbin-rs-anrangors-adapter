@@ -10,6 +10,9 @@ use casbin_dao::CasbinDao;
 mod model;
 mod casbin_dao;
 
+#[cfg(test)]
+mod lib_test;
+
 pub struct ArangorsAdapter<C: ClientExt> {
     database: Database<C>
 }
