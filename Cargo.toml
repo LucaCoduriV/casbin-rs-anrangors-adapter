@@ -2,7 +2,7 @@
 authors = ["Luca Coduri <coduri.vitor@gmail.com>"]
 name = "casbin-arangors-adapter"
 description = "ArangoRs adapter for casbin-rs"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 readme = "README.md"
 homepage = "https://github.com/LucaCoduriV/casbin-rs-anrangors-adapter"
