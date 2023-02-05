@@ -146,91 +146,91 @@ impl<T: ClientExt + Send> CasbinDao for Database<T> {
             AqlQuery::builder()
                 .query(r#"FOR r IN casbin
             FILTER r.ptype == @ptype
-            FILTER r.v5 == @f0
+            FILTER r.v5 == NOT_NULL(@f0, r.v5)
             REMOVE r IN casbin
             RETURN 1"#)
                 .bind_var("ptype", pt)
-                .bind_var("f0", field_values[0].as_str())
+                .bind_var("f0", if field_values[0].is_empty() { None } else { Some(field_values[0].as_str()) })
                 .build()
         }else if field_index == 4 {
             AqlQuery::builder()
                 .query(r#"FOR r IN casbin
             FILTER r.ptype == @ptype
-            FILTER r.v4 == @f0
-            FILTER r.v5 == @f1
+            FILTER r.v4 == NOT_NULL(@f0, r.v4)
+            FILTER r.v5 == NOT_NULL(@f1, r.v5)
             REMOVE r IN casbin
             RETURN 1"#)
                 .bind_var("ptype", pt)
-                .bind_var("f0", field_values[0].as_str())
-                .bind_var("f1", field_values[1].as_str())
+                .bind_var("f0", if field_values[0].is_empty() { None } else { Some(field_values[0].as_str()) })
+                .bind_var("f1", if field_values[1].is_empty() { None } else { Some(field_values[1].as_str()) })
                 .build()
         }else if field_index == 3 {
             AqlQuery::builder()
                 .query(r#"FOR r IN casbin
             FILTER r.ptype == @ptype
-            FILTER r.v3 == @f0
-            FILTER r.v4 == @f1
-            FILTER r.v5 == @f2
+            FILTER r.v3 == NOT_NULL(@f0, r.v3)
+            FILTER r.v4 == NOT_NULL(@f1, r.v4)
+            FILTER r.v5 == NOT_NULL(@f2, r.v5)
             REMOVE r IN casbin
             RETURN 1"#)
                 .bind_var("ptype", pt)
-                .bind_var("f0", field_values[0].as_str())
-                .bind_var("f1", field_values[1].as_str())
-                .bind_var("f2", field_values[2].as_str())
+                .bind_var("f0", if field_values[0].is_empty() { None } else { Some(field_values[0].as_str()) })
+                .bind_var("f1", if field_values[1].is_empty() { None } else { Some(field_values[1].as_str()) })
+                .bind_var("f2", if field_values[2].is_empty() { None } else { Some(field_values[2].as_str()) })
                 .build()
         }else if field_index == 2{
             AqlQuery::builder()
                 .query(r#"FOR r IN casbin
             FILTER r.ptype == @ptype
-            FILTER r.v2 == @f0
-            FILTER r.v3 == @f1
-            FILTER r.v4 == @f2
-            FILTER r.v5 == @f3
+            FILTER r.v2 == NOT_NULL(@f0, r.v2)
+            FILTER r.v3 == NOT_NULL(@f1, r.v3)
+            FILTER r.v4 == NOT_NULL(@f2, r.v4)
+            FILTER r.v5 == NOT_NULL(@f3, r.v5)
             REMOVE r IN casbin
             RETURN 1"#)
                 .bind_var("ptype", pt)
-                .bind_var("f0", field_values[0].as_str())
-                .bind_var("f1", field_values[1].as_str())
-                .bind_var("f2", field_values[2].as_str())
-                .bind_var("f3", field_values[3].as_str())
+                .bind_var("f0", if field_values[0].is_empty() { None } else { Some(field_values[0].as_str()) })
+                .bind_var("f1", if field_values[1].is_empty() { None } else { Some(field_values[1].as_str()) })
+                .bind_var("f2", if field_values[2].is_empty() { None } else { Some(field_values[2].as_str()) })
+                .bind_var("f3", if field_values[3].is_empty() { None } else { Some(field_values[3].as_str()) })
                 .build()
         }else if field_index == 1{
             AqlQuery::builder()
                 .query(r#"FOR r IN casbin
             FILTER r.ptype == @ptype
-            FILTER r.v1 == @f0
-            FILTER r.v2 == @f1
-            FILTER r.v3 == @f2
-            FILTER r.v4 == @f3
-            FILTER r.v5 == @f4
+            FILTER r.v1 == NOT_NULL(@f0, r.v1)
+            FILTER r.v2 == NOT_NULL(@f1, r.v2)
+            FILTER r.v3 == NOT_NULL(@f2, r.v3)
+            FILTER r.v4 == NOT_NULL(@f3, r.v4)
+            FILTER r.v5 == NOT_NULL(@f4, r.v5)
             REMOVE r IN casbin
             RETURN 1"#)
                 .bind_var("ptype", pt)
-                .bind_var("f0", field_values[0].as_str())
-                .bind_var("f1", field_values[1].as_str())
-                .bind_var("f2", field_values[2].as_str())
-                .bind_var("f3", field_values[3].as_str())
-                .bind_var("f4", field_values[4].as_str())
+                .bind_var("f0", if field_values[0].is_empty() { None } else { Some(field_values[0].as_str()) })
+                .bind_var("f1", if field_values[1].is_empty() { None } else { Some(field_values[1].as_str()) })
+                .bind_var("f2", if field_values[2].is_empty() { None } else { Some(field_values[2].as_str()) })
+                .bind_var("f3", if field_values[3].is_empty() { None } else { Some(field_values[3].as_str()) })
+                .bind_var("f4", if field_values[4].is_empty() { None } else { Some(field_values[4].as_str()) })
                 .build()
         }else{
             AqlQuery::builder()
                 .query(r#"FOR r IN casbin
             FILTER r.ptype == @ptype
-            FILTER r.v0 == @f0
-            FILTER r.v1 == @f1
-            FILTER r.v2 == @f2
-            FILTER r.v3 == @f3
-            FILTER r.v4 == @f4
-            FILTER r.v5 == @f5
+            FILTER r.v0 == NOT_NULL(@f0, r.v0)
+            FILTER r.v1 == NOT_NULL(@f1, r.v1)
+            FILTER r.v2 == NOT_NULL(@f2, r.v2)
+            FILTER r.v3 == NOT_NULL(@f3, r.v3)
+            FILTER r.v4 == NOT_NULL(@f4, r.v4)
+            FILTER r.v5 == NOT_NULL(@f5, r.v5)
             REMOVE r IN casbin
                 RETURN 1"#)
                 .bind_var("ptype", pt)
-                .bind_var("f0", field_values[0].as_str())
-                .bind_var("f1", field_values[1].as_str())
-                .bind_var("f2", field_values[2].as_str())
-                .bind_var("f3", field_values[3].as_str())
-                .bind_var("f4", field_values[4].as_str())
-                .bind_var("f5", field_values[5].as_str())
+                .bind_var("f0", if field_values[0].is_empty() { None } else { Some(field_values[0].as_str()) })
+                .bind_var("f1", if field_values[1].is_empty() { None } else { Some(field_values[1].as_str()) })
+                .bind_var("f2", if field_values[2].is_empty() { None } else { Some(field_values[2].as_str()) })
+                .bind_var("f3", if field_values[3].is_empty() { None } else { Some(field_values[3].as_str()) })
+                .bind_var("f4", if field_values[4].is_empty() { None } else { Some(field_values[4].as_str()) })
+                .bind_var("f5", if field_values[5].is_empty() { None } else { Some(field_values[5].as_str()) })
                 .build()
         };
 
@@ -238,7 +238,6 @@ impl<T: ClientExt + Send> CasbinDao for Database<T> {
             .aql_query(aql)
             .await
             .map_err(|e| AdapterError(Box::new(e)))?;
-        println!("{arr:?}");
         Ok(!arr.is_empty())
     }
 }

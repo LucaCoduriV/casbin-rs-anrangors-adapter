@@ -177,7 +177,6 @@ impl<C: ClientExt + Send> Adapter for ArangorsAdapter<C> {
 
             let t = self.database.remove_filtered_policy(&ptype_c, field_index, field_values).await
                 .map_err(|e| casbin::error::AdapterError(Box::new(e)).into());
-            println!("{t:?}");
             t
         } else {
             Ok(false)

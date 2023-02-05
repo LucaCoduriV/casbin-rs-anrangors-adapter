@@ -28,7 +28,7 @@ assert!(!e.enforce(("jack", "data4", "write")).unwrap());
 ## Disclaimer
 
 The crate is not 100% tested and will maybe have some bugs.
-Feel free to make a push request to fix those bugs 😃.
+Feel free to make a pull request to fix those bugs 😃.
 
 The code can be improved for sure but it wasn't the main goal.
 
