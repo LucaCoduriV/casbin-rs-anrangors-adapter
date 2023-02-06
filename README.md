@@ -1,4 +1,4 @@
-![crates.io](https://img.shields.io/crates/v/casbin-arangors-adapter.svg)
+[![crates.io](https://img.shields.io/crates/v/casbin-arangors-adapter.svg)](https://crates.io/crates/casbin-arangors-adapter)
 # Casbin-rs Arangors adapter
 
 ## How to use
