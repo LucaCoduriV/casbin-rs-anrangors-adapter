@@ -1,4 +1,5 @@
 # Casbin-rs Arangors adapter
+![crates.io](https://img.shields.io/crates/v/casbin-arangors-adapter.svg)
 
 ## How to use
 To make this crate work you need to create a collection named `casbin`.
